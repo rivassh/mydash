@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-chatdash}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-chatdash}
+      POSTGRES_DB: ${DB_NAME:-chatdash}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+
+  api:
+    build: .
+    environment:
+      PYTHONPATH: /app
+      DB_HOST: db
+      BALE_CONNECTOR_MODE: mock
+    env_file: .env
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      - db
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  pgdata:

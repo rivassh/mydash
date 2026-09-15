@@ -1,0 +1,6 @@
+.env
+.pytest_cache/
+chatdash.egg-info/
+__pycache__/
+*.pyc
+freight-management-system.zip
