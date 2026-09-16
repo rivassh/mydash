@@ -22,9 +22,7 @@ from app.connectors.bale.connector import BaleConnector
 from app.sync.engine import SyncEngine
 
 # Setup logging
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logger = setup_logging(load_settings().log_level)
-
+logger = setup_logging(str(load_settings().log_level))
 settings = load_settings()
 
 app = FastAPI(
@@ -196,7 +194,6 @@ async def trigger_sync(
     if source_type != "bale":
         raise HTTPException(400, "Only Bale source supported in Phase 1")
     
-    from app.connectors.bale.connector import BaleConnector
     connector = BaleConnector(source_id=0, config={"mode": "mock"})
     sync_engine = SyncEngine(connector)
     result = await sync_engine.run_sync()
