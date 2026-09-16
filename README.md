@@ -1,48 +1,66 @@
-# ChatDash
+# ChatDash — Unified Messaging Dashboard
 
-Offline-first messaging aggregator backend. Phase 1 ships the **Bale**
-connector, a PostgreSQL-backed store, an incremental sync engine, and a
-REST API for an Android client.
+Offline-first messaging aggregator backend for the unified dashboard.
 
-## Stack
+## Architecture
 
-- Python 3.11+, FastAPI
-- PostgreSQL (asyncpg) + Alembic migrations
-- Structured logging (structlog)
-- Docker Compose for local run
-
-## Quick start
-
-```bash
-cp .env.example .env   # edit values as needed
-docker compose up --build
+```
+mydash/
+├── app/                   # Python/FastAPI backend (ChatDash)
+│   ├── api/               # FastAPI routes
+│   ├── connectors/        # Platform connectors (Bale, Eitaa, etc.)
+│   ├── core/              # Config, logging
+│   ├── db/                # SQLAlchemy models, repositories, session
+│   ├── schemas/           # Pydantic models
+│   ├── sync/              # Sync engine with cursor pagination
+│   └── jobs/              # Background jobs
+├── shared/                # Cross-service shared utilities
+│   └── cursor/            # Unified cursor encode/decode
+├── frontend/              # Vue.js/React frontend (Takhte Sholokhte style)
+├── dashboard/             # Laravel 11 + Vue.js 3 messaging hub (submodule)
+├── crawler/               # Laravel + Python Celery data extraction (submodule)
+├── chatbot/               # Node.js PWA chatbot (submodule)
+├── GhostRunner/           # Job scraper for jobinja.ir, jobvision.ir (submodule)
+├── ai-dashboard/          # OpenWebUI + custom dashboard (submodule)
+├── tests/                 # Backend tests
+├── alembic/               # SQLAlchemy migrations
+├── docs/                  # Documentation
+└── prompts/               # Original prompts and design notes
 ```
 
-API is then available at `http://localhost:8000`.
+## Submodules
 
-## Endpoints
+| Submodule       | Purpose                                        | URL                                      |
+|-----------------|------------------------------------------------|------------------------------------------|
+| `dashboard`     | Laravel 11 + Vue.js 3 messaging hub            | github.com/rivassh/dashboard             |
+| `crawler`       | Laravel + Python Celery data extraction        | github.com/rivassh/crawler               |
+| `chatbot`       | Node.js PWA AI chatbot                         | github.com/rivassh/chatbot               |
+| `GhostRunner`   | Job scraper (jobinja.ir, jobvision.ir)         | github.com/rivassh/GhostRunner           |
+| `ai-dashboard`  | OpenWebUI + custom dashboard                   | github.com/rivassh/ai-dashboard          |
 
-| Method | Path                          | Description                              |
-| ------ | ----------------------------- | ---------------------------------------- |
-| GET    | `/health`                     | Liveness probe                           |
-| GET    | `/sources`                    | Available connector sources              |
-| GET    | `/conversations`              | Cursor-paginated conversation list       |
-| GET    | `/conversations/{id}/messages`| Cursor-paginated messages for a convo    |
-| GET    | `/sync/status`                | Last sync state for a source             |
-| POST   | `/sync/run`                   | Trigger a sync run for a source          |
+## Cursor Flow
 
-## Triggering a sync manually
+Central pagination thread across all services:
 
-```bash
-curl -X POST "http://localhost:8000/sync/run?sourceType=bale"
+```
+connector → sync engine → DB → API → frontend cards → cursor pagination
 ```
 
-## Known limitations (Phase 1)
+Cursor format: base64-encoded ISO timestamp (see `shared/cursor/`).
 
-- Bale connector is a **pluggable adapter**. Real mode issues HTTP calls to
-  `BALE_BASE_URL` using the configured endpoints; if the exact Bale API is
-  unknown, set `BALE_CONNECTOR_MODE=mock` for local development. The adapter
-  interface is stable for Phases 2-5.
-- No background scheduler process is wired yet; `POST /sync/run` runs the sync
-  synchronously with bounded batch sizes.
-- Drafts / outbox are schema placeholders only.
+## Visual Style
+
+Takhte Sholokhte / stickynote — each chat becomes a card with:
+- Avatar, last message preview
+- Position on the board
+- Color by platform (Eitaa=Blue, Rubika=Yellow, Bale=Green, etc.)
+- Priority level
+
+## Getting Started
+
+```bash
+cp .env.example .env
+docker compose up
+```
+
+API will be available at `http://localhost:8000`.
