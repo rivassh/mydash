@@ -15,7 +15,7 @@ from app.db.repositories import (
 from app.db.session import session_scope
 from app.connectors.base import BaseConnector
 from app.schemas import SyncStatus
-import base64
+from shared.cursor import encode_cursor, decode_cursor
 
 logger = structlog.get_logger()
 
@@ -127,12 +127,23 @@ class SyncEngine:
             if conversations:
                 last_conv = conversations[-1]
                 if last_conv.get("last_message_at"):
-                    cursor = base64.b64encode(
-                        last_conv["last_message_at"].isoformat().encode()
-                    ).decode()
-                    # This would be stored in sync state
-                    # For now, returning to caller to update state
-                    pass
+                    cursor = encode_cursor(last_conv["last_message_at"])
+                    # Update sync state with new cursor
+                    sync_state_repo = SyncStateRepository(db)
+                    await sync_state_repo.create_or_update_state(
+                        source_id=source_id,
+                        cursor=cursor,
+                        last_success_at=datetime.utcnow()
+                    )
+                # Also check if connector provided a next cursor
+                elif last_conv.get("_next_cursor"):
+                    cursor = last_conv["_next_cursor"]
+                    sync_state_repo = SyncStateRepository(db)
+                    await sync_state_repo.create_or_update_state(
+                        source_id=source_id,
+                        cursor=cursor,
+                        last_success_at=datetime.utcnow()
+                    )
 
     async def _sync_messages(self, conversation_id: int, remote_conversation_id: str, batch_size: int, db: AsyncSession):
         """Sync messages for a specific conversation."""

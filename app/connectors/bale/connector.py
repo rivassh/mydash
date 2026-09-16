@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import time
 from app.connectors.base import BaseConnector
+from shared.cursor import encode_cursor, decode_cursor
 
 logger = structlog.get_logger()
 
@@ -57,7 +58,11 @@ class BaleConnector(BaseConnector):
         await self._rate_limit_delay()
         
         if self.mode == "mock":
-            return self._mock_conversations(cursor, limit)
+            conversations = self._mock_conversations(cursor, limit)
+            # If we have a next cursor, include it in the last conversation for the sync engine to pick up
+            if self._last_cursor and conversations:
+                conversations[-1]["_next_cursor"] = self._last_cursor
+            return conversations
         
         # Real Bale API implementation would go here
         # This is a placeholder showing the structure
@@ -167,7 +172,7 @@ class BaleConnector(BaseConnector):
         
         # Return next cursor if more data available
         if start_idx + limit < 20:
-            self._last_cursor = str(start_idx + limit)
+            self._last_cursor = encode_cursor(self._get_mock_timestamp(hours_ago=0))
         else:
             self._last_cursor = None
             
