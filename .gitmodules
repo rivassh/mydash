@@ -1,0 +1,15 @@
+[submodule "chatbot"]
+	path = chatbot
+	url = git@github.com:rivassh/chatbot.git
+[submodule "crawler"]
+	path = crawler
+	url = git@github.com:rivassh/crawler.git
+[submodule "dashboard"]
+	path = dashboard
+	url = git@github.com:rivassh/dashboard.git
+[submodule "GhostRunner"]
+	path = GhostRunner
+	url = git@github.com:rivassh/GhostRunner.git
+[submodule "ai-dashboard"]
+	path = ai-dashboard
+	url = git@github.com:rivassh/ai-dashboard.git
