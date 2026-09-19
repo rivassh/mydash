@@ -1,87 +1,61 @@
-"""Cursor/pagination encoding utilities for unified dashboard."""
+"""Cursor/pagination encoding utilities for unified dashboard.
 
-import base64
-from datetime import datetime, timezone
-from typing import Optional, Tuple
+This module provides cursor encoding/decoding utilities with support
+for multiple cursor formats across different platforms:
+
+- ISO: Base64-encoded ISO 8601 timestamp (default)
+- Mimo: Mimo platform format (mimo:base64_iso)
+- OpenCode: Open platform format (open:base64_millis)
+- Raw: Raw string passthrough
+
+Usage:
+    from shared.cursor import CursorFactory, encode_cursor, decode_cursor
+    
+    # Use factory for multiple strategies
+    factory = CursorFactory("mimo")
+    cursor = factory.encode_cursor(datetime.utcnow())
+    dt = factory.decode_cursor(cursor)
+    
+    # Use default helpers (ISO format)
+    cursor = encode_cursor(datetime.utcnow())
+    dt = decode_cursor(cursor)
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Optional
+
+from shared.cursor.strategies.base import CursorStrategy
+from shared.cursor.strategies.iso import Base64ISOCursorStrategy
+from shared.cursor.strategies.mimo import MimoCodeCursorStrategy
+from shared.cursor.strategies.open_code import OpenCodeCursorStrategy
+from shared.cursor.strategies.raw import RawCursorStrategy
+from shared.cursor.factory import CursorFactory
+
+
+# Legacy helper functions (use ISO strategy for backward compatibility)
+_default_iso = Base64ISOCursorStrategy()
 
 
 def encode_cursor(dt: datetime) -> str:
-    """
-    Encode a datetime to a base64 cursor.
-    
-    The cursor is a base64-encoded ISO format timestamp.
-    Used for cursor-based pagination across all services.
-    
-    Args:
-        dt: The datetime to encode
-        
-    Returns:
-        Base64-encoded cursor string
-    """
-    # Ensure timezone-aware datetime in UTC
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    else:
-        dt = dt.astimezone(timezone.utc)
-    
-    iso_format = dt.isoformat()
-    cursor = base64.b64encode(iso_format.encode()).decode()
-    return cursor
+    """Encode datetime to cursor using default ISO strategy."""
+    return _default_iso.encode_cursor(dt)
 
 
 def decode_cursor(cursor: str) -> Optional[datetime]:
-    """
-    Decode a base64 cursor to a datetime.
-    
-    Args:
-        cursor: The base64-encoded cursor string
-        
-    Returns:
-        Datetime object or None if cursor is empty/invalid
-    """
-    if not cursor or not cursor.strip():
-        return None
-    
-    try:
-        decoded_bytes = base64.b64decode(cursor)
-        decoded_str = decoded_bytes.decode()
-        dt = datetime.fromisoformat(decoded_str)
-        # Ensure UTC if naive
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    except Exception:
-        return None
+    """Decode cursor to datetime using default ISO strategy."""
+    return _default_iso.decode_cursor(cursor)
 
 
 def cursor_to_timestamp(cursor: str) -> Optional[float]:
-    """
-    Convert cursor to Unix timestamp.
-    
-    Args:
-        cursor: The base64-encoded cursor string
-        
-    Returns:
-        Unix timestamp in seconds, or None if invalid
-    """
-    dt = decode_cursor(cursor)
-    if dt is None:
-        return None
-    return dt.timestamp()
+    """Convert cursor to Unix timestamp."""
+    return _default_iso.cursor_to_timestamp(cursor)
 
 
 def timestamp_to_cursor(ts: float) -> str:
-    """
-    Convert Unix timestamp to cursor.
-    
-    Args:
-        ts: Unix timestamp in seconds
-        
-    Returns:
-        Base64-encoded cursor string
-    """
-    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
-    return encode_cursor(dt)
+    """Convert Unix timestamp to cursor."""
+    return _default_iso.timestamp_to_cursor(ts)
 
 
 class CursorRange:
@@ -109,3 +83,21 @@ class CursorRange:
             start_cursor=data.get("start_cursor"),
             end_cursor=data.get("end_cursor"),
         )
+
+
+__all__ = [
+    # Factory for multi-strategy support
+    "CursorFactory",
+    # Base strategy class
+    "CursorStrategy",
+    # Concrete strategies
+    "Base64ISOCursorStrategy",
+    "MimoCodeCursorStrategy",
+    "OpenCodeCursorStrategy",
+    # Legacy helpers (backward compatible)
+    "encode_cursor",
+    "decode_cursor",
+    "cursor_to_timestamp",
+    "timestamp_to_cursor",
+    "CursorRange",
+]

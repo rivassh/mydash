@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import time
 from app.connectors.base import BaseConnector
-from shared.cursor import encode_cursor, decode_cursor
+from shared.cursor import CursorFactory
 
 logger = structlog.get_logger()
 
@@ -22,6 +22,9 @@ class BaleConnector(BaseConnector):
         self.user_id = config.get("user_id", "")
         self.request_timeout = config.get("request_timeout", 30)
         self.mode = config.get("mode", "mock").lower()
+        # Cursor strategy: "iso" (default), "mimo", "open_code", or custom
+        cursor_strategy = config.get("cursor_strategy", "iso")
+        self.cursor_factory = CursorFactory(cursor_strategy)
         self.headers = {
             "Authorization": f"Bearer {self.session_id}",
             "Content-Type": "application/json",
@@ -157,7 +160,15 @@ class BaleConnector(BaseConnector):
 
     def _mock_conversations(self, cursor: Optional[str], limit: int) -> List[Dict[str, Any]]:
         """Generate mock conversation data for development."""
-        start_idx = int(cursor) if cursor and cursor.isdigit() else 0
+        # Decode cursor using the cursor factory (handles multiple formats)
+        if cursor and cursor.strip():
+            dt = self.cursor_factory.decode_cursor(cursor)
+            if dt:
+                start_idx = int(dt.timestamp()) % 1000  # Use timestamp as index
+            else:
+                start_idx = 0
+        else:
+            start_idx = 0
         conversations = []
         
         for i in range(start_idx, min(start_idx + limit, start_idx + 20)):  # 20 total mock convs
@@ -172,7 +183,7 @@ class BaleConnector(BaseConnector):
         
         # Return next cursor if more data available
         if start_idx + limit < 20:
-            self._last_cursor = encode_cursor(self._get_mock_timestamp(hours_ago=0))
+            self._last_cursor = self.cursor_factory.encode_cursor(self._get_mock_timestamp(hours_ago=0))
         else:
             self._last_cursor = None
             

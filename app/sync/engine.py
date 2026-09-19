@@ -15,7 +15,7 @@ from app.db.repositories import (
 from app.db.session import session_scope
 from app.connectors.base import BaseConnector
 from app.schemas import SyncStatus
-from shared.cursor import encode_cursor, decode_cursor
+from shared.cursor import CursorFactory
 
 logger = structlog.get_logger()
 
@@ -27,6 +27,7 @@ class SyncEngine:
         self.connector = connector
         self.source_type = connector.config.get("type", "unknown")
         self.logger = logger.bind(connector=self.__class__.__name__)
+        self.cursor_factory = getattr(connector, "cursor_factory", CursorFactory())
 
     async def run_sync(self, batch_size: int = 100) -> SyncStatus:
         """
@@ -122,12 +123,11 @@ class SyncEngine:
         
         # Update cursor if more data available
         if len(conversations) >= batch_size:
-            # For simplicity, we'll use the last conversation's timestamp
-            # In practice, connector would provide next cursor
+            # Use the connector's cursor strategy (could be ISO, Mimo, OpenCode, etc.)
             if conversations:
                 last_conv = conversations[-1]
                 if last_conv.get("last_message_at"):
-                    cursor = encode_cursor(last_conv["last_message_at"])
+                    cursor = self.cursor_factory.encode_cursor(last_conv["last_message_at"])
                     # Update sync state with new cursor
                     sync_state_repo = SyncStateRepository(db)
                     await sync_state_repo.create_or_update_state(

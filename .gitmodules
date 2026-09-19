@@ -13,3 +13,6 @@
 [submodule "ai-dashboard"]
 	path = ai-dashboard
 	url = git@github.com:rivassh/ai-dashboard.git
+[submodule "chat-assistant"]
+	path = chat-assistant
+	url = git@github.com:rivassh/chat-assistant.git
